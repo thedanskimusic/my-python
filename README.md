@@ -133,6 +133,32 @@ Using Docker makes the scanner:
 - ✅ **Consistent** - Same environment everywhere
 - ✅ **Easy sharing** - One command to run anywhere
 
+## Development & Updating
+
+### Making Changes
+
+1. **Edit the code** in `src/` directory
+2. **Rebuild the Docker image**:
+   ```bash
+   docker build -t security-scanner .
+   ```
+   Or use the helper script:
+   ```bash
+   ./scripts/rebuild.sh
+   ```
+3. **Test your changes**:
+   ```bash
+   docker run --rm -v $(pwd):/scan security-scanner /scan/test_security.py
+   ```
+
+### Common Enhancements
+
+- **Add new patterns**: Edit `src/patterns/rules.py`
+- **Add dependencies**: Update `requirements.txt`, then rebuild
+- **Modify scanner logic**: Edit files in `src/scanner/`
+
+See `DEVELOPMENT.md` for detailed development workflow.
+
 ## Learning Notes
 
 This project demonstrates:
