@@ -1,0 +1,4 @@
+"""
+Security pattern definitions
+"""
+

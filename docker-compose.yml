@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  scanner:
+    build: .
+    volumes:
+      - .:/workspace:ro  # Mount current directory as read-only
+    working_dir: /workspace
+    entrypoint: ["python", "/app/src/scanner_cli.py"]
+    # Usage: docker-compose run --rm scanner <target>
+    # Example: docker-compose run --rm scanner /workspace
+
