@@ -9,13 +9,23 @@ import os
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 
+try:
+    from rich.console import Console
+    from rich.spinner import Spinner
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
+
 
 class DependencyScanner:
     """Scans dependencies for known vulnerabilities using OSV API"""
     
-    def __init__(self):
+    def __init__(self, show_progress: bool = True):
         self.osv_api = "https://api.osv.dev/v1/query"
         self.timeout = 10  # API request timeout
+        self.show_progress = show_progress and RICH_AVAILABLE
+        if self.show_progress:
+            self.console = Console()
     
     def parse_requirements_txt(self, file_path: str) -> List[Dict[str, str]]:
         """
@@ -199,18 +209,30 @@ class DependencyScanner:
         
         stats['packages_parsed'] = len(all_packages)
         
+        # Filter packages with versions
+        packages_to_check = [pkg for pkg in all_packages if pkg.get('version')]
+        total_packages = len(packages_to_check)
+        
         # Check each package for vulnerabilities
-        for pkg in all_packages:
-            if not pkg.get('version'):
-                continue  # Skip packages without versions
-            
+        for idx, pkg in enumerate(packages_to_check, 1):
             stats['packages_checked'] += 1
-                
-            vulns, success = self.check_vulnerability(
-                pkg['name'],
-                pkg['version'],
-                pkg.get('ecosystem', 'PyPI')
-            )
+            
+            # Show progress with spinner
+            if self.show_progress and total_packages > 0:
+                package_name = f"{pkg['name']}=={pkg['version']}"
+                progress_msg = f"[cyan]Checking {package_name}...[/cyan] [{idx}/{total_packages}]"
+                with self.console.status(progress_msg, spinner="dots"):
+                    vulns, success = self.check_vulnerability(
+                        pkg['name'],
+                        pkg['version'],
+                        pkg.get('ecosystem', 'PyPI')
+                    )
+            else:
+                vulns, success = self.check_vulnerability(
+                    pkg['name'],
+                    pkg['version'],
+                    pkg.get('ecosystem', 'PyPI')
+                )
             
             if vulns:
                 stats['vulnerabilities_found'] += len(vulns)

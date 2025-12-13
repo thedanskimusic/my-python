@@ -64,18 +64,18 @@ def scan(target, secrets, vulns, dependencies, output, recursive, severity):
     
     # Scan dependencies for known vulnerabilities
     if dependencies:
-        click.echo("Scanning dependencies for known vulnerabilities...", nl=False)
+        click.echo("Scanning dependencies for known vulnerabilities...")
         dep_scanner = DependencyScanner()
         # Only scan directories (not individual files)
         if os.path.isdir(target):
             dep_findings, dep_stats = dep_scanner.scan_directory(target)
             all_findings.extend(dep_findings)
             if dep_stats['files_found'] > 0:
-                click.echo(f" Scanned {dep_stats['packages_checked']} packages from {dep_stats['files_found']} file(s), found {len(dep_findings)} vulnerable dependencies")
+                click.echo(f"✓ Scanned {dep_stats['packages_checked']} packages from {dep_stats['files_found']} file(s), found {len(dep_findings)} vulnerable dependencies")
             else:
-                click.echo(f" No dependency files found")
+                click.echo(f"  No dependency files found")
         else:
-            click.echo(" (skipped - dependency scanning requires a directory)")
+            click.echo("  (skipped - dependency scanning requires a directory)")
     
     # Filter by severity
     if severity != 'all':
