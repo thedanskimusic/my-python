@@ -53,13 +53,33 @@ class Reporter:
             
             for finding in severity_findings:
                 output.append(f"  [{finding['type']}] {finding['name']}\n")
-                output.append(f"  File: {finding['file']}:{finding['line']}\n")
-                output.append(f"  Description: {finding['description']}\n")
-                output.append(f"  Match: {finding['match']}\n")
-                output.append(f"  Context:\n")
-                # Indent context lines
-                for line in finding['context'].split('\n'):
-                    output.append(f"    {line}\n")
+                
+                # Handle different finding types
+                if finding['type'] == 'dependency':
+                    # Dependency findings have different structure
+                    output.append(f"  Package: {finding.get('package', 'Unknown')} ({finding.get('version', 'Unknown')})\n")
+                    output.append(f"  Ecosystem: {finding.get('ecosystem', 'Unknown')}\n")
+                    output.append(f"  Vulnerability ID: {finding.get('vuln_id', 'Unknown')}\n")
+                    output.append(f"  File: {finding.get('file', 'Unknown')}\n")
+                    output.append(f"  Description: {finding.get('description', 'No description')}\n")
+                    if finding.get('references'):
+                        output.append(f"  References:\n")
+                        for ref in finding['references'][:3]:  # Show first 3
+                            output.append(f"    - {ref.get('url', ref)}\n")
+                else:
+                    # Regular findings (secrets, vulnerabilities)
+                    if 'line' in finding:
+                        output.append(f"  File: {finding['file']}:{finding['line']}\n")
+                    else:
+                        output.append(f"  File: {finding['file']}\n")
+                    output.append(f"  Description: {finding['description']}\n")
+                    if 'match' in finding:
+                        output.append(f"  Match: {finding['match']}\n")
+                    if 'context' in finding:
+                        output.append(f"  Context:\n")
+                        # Indent context lines
+                        for line in finding['context'].split('\n'):
+                            output.append(f"    {line}\n")
                 output.append("\n")
         
         # Summary

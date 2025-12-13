@@ -6,6 +6,7 @@ A security scanning tool similar to Snyk or secret scanners, built to learn Pyth
 
 - 🔍 **Secret Detection**: Finds API keys, passwords, tokens, AWS credentials, and more
 - 🛡️ **Vulnerability Scanning**: Detects SQL injection risks, unsafe eval/exec usage, and other security issues
+- 📦 **Dependency Scanning**: Checks packages against OSV database for known vulnerabilities (PyPI, npm, etc.)
 - 📁 **Directory Scanning**: Recursively scans code and config files
 - 📊 **Multiple Output Formats**: Console (formatted) or JSON output
 - 🎯 **Severity Filtering**: Filter findings by severity level
@@ -106,15 +107,39 @@ python src/scanner_cli.py src/ --no-vulns
 
 # Only show critical and high severity issues
 python src/scanner_cli.py src/ --severity high
+
+# Scan dependencies for known vulnerabilities
+python src/scanner_cli.py src/ --dependencies
+
+# Scan everything (secrets, vulnerabilities, and dependencies)
+python src/scanner_cli.py src/ --dependencies
 ```
 
 ### Options
 
 - `--secrets/--no-secrets`: Enable/disable secret scanning (default: enabled)
 - `--vulns/--no-vulns`: Enable/disable vulnerability scanning (default: enabled)
+- `--dependencies/--no-dependencies`: Scan dependencies for known vulnerabilities (default: disabled)
 - `--output, -o`: Output format - `console` or `json` (default: console)
 - `--recursive/--no-recursive`: Scan subdirectories (default: enabled)
 - `--severity`: Minimum severity to report - `critical`, `high`, `medium`, `low`, or `all` (default: all)
+
+### Dependency Scanning
+
+The dependency scanner:
+- ✅ Parses `requirements.txt` (Python) and `package.json` (Node.js)
+- ✅ Checks packages against OSV (Open Source Vulnerabilities) database
+- ✅ Reports known CVEs and security advisories
+- ✅ Shows vulnerability details, references, and severity
+
+**Example:**
+```bash
+# Scan dependencies only
+docker run --rm -v /path/to/repo:/scan security-scanner /scan --dependencies --no-secrets --no-vulns
+
+# Scan everything including dependencies
+docker run --rm -v /path/to/repo:/scan security-scanner /scan --dependencies
+```
 
 ## Example Output
 
