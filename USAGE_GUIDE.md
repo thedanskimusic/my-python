@@ -13,6 +13,9 @@ docker run --rm -v /path/to/target:/scan security-scanner /scan
 # Scan current directory
 docker run --rm -v $(pwd):/scan security-scanner /scan
 
+# Dependencies
+docker run --rm -v $(pwd):/scan security-scanner /scan --dependencies
+
 # With options
 docker run --rm -v /path/to/target:/scan security-scanner /scan --severity high --output json
 ```

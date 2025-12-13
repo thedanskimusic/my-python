@@ -46,11 +46,10 @@ def scan(target, secrets, vulns, dependencies, output, recursive, severity):
         secret_detector = SecretDetector()
         secret_findings = secret_detector.scan_directory(target, recursive)
         all_findings.extend(secret_findings)
-        files_scanned = len(set(f['file'] for f in secret_findings))
-        if files_scanned > 0:
-            click.echo(f" Scanned {files_scanned} file(s), found {len(secret_findings)} potential secrets")
-        else:
-            click.echo(f" Scanned files, found {len(secret_findings)} potential secrets")
+        # Count files that were actually scanned (not just files with findings)
+        file_scanner = secret_detector.file_scanner
+        files_scanned = len(file_scanner.get_scannable_files(target, recursive))
+        click.echo(f" Scanned {files_scanned} file(s), found {len(secret_findings)} potential secrets")
     
     # Scan for vulnerabilities
     if vulns:
@@ -58,11 +57,10 @@ def scan(target, secrets, vulns, dependencies, output, recursive, severity):
         vuln_scanner = VulnerabilityScanner()
         vuln_findings = vuln_scanner.scan_directory(target, recursive)
         all_findings.extend(vuln_findings)
-        files_scanned = len(set(f['file'] for f in vuln_findings))
-        if files_scanned > 0:
-            click.echo(f" Scanned {files_scanned} file(s), found {len(vuln_findings)} potential vulnerabilities")
-        else:
-            click.echo(f" Scanned files, found {len(vuln_findings)} potential vulnerabilities")
+        # Count files that were actually scanned (not just files with findings)
+        file_scanner = vuln_scanner.file_scanner
+        files_scanned = len(file_scanner.get_code_files(target, recursive))
+        click.echo(f" Scanned {files_scanned} file(s), found {len(vuln_findings)} potential vulnerabilities")
     
     # Scan dependencies for known vulnerabilities
     if dependencies:
