@@ -8,13 +8,16 @@ The scanner can be run from **anywhere** once the Docker image is built!
 
 ```bash
 # Scan any directory
-docker run --rm -v /path/to/target:/scan security-scanner /scan
+docker run --rm -it -v /path/to/target:/scan security-scanner /scan
 
 # Scan current directory
-docker run --rm -v $(pwd):/scan security-scanner /scan
+docker run --rm -it -v $(pwd):/scan security-scanner /scan
+
+# Dependencies
+docker run --rm -it -v $(pwd):/scan security-scanner /scan --dependencies
 
 # With options
-docker run --rm -v /path/to/target:/scan security-scanner /scan --severity high --output json
+docker run --rm -it -v /path/to/target:/scan security-scanner /scan --severity high --output json
 ```
 
 ## Method 2: Using the Wrapper Script
@@ -48,10 +51,10 @@ Add to your `~/.zshrc` or `~/.bashrc`:
 
 ```bash
 # Simple alias
-alias security-scan='docker run --rm -v'
+alias security-scan='docker run --rm -it -v'
 
 # Or more complete (handles current directory)
-alias security-scan='f(){ docker run --rm -v "$(pwd)":/scan security-scanner /scan "$@"; }; f'
+alias security-scan='f(){ docker run --rm -it -v "$(pwd)":/scan security-scanner /scan "$@"; }; f'
 ```
 
 Then reload: `source ~/.zshrc`
@@ -69,7 +72,7 @@ security-scan --severity high
 
 ```bash
 # From anywhere on your machine
-docker run --rm -v ~/code/my-other-project:/scan security-scanner /scan
+docker run --rm -it -v ~/code/my-other-project:/scan security-scanner /scan
 ```
 
 ### Scan Current Directory
@@ -77,20 +80,20 @@ docker run --rm -v ~/code/my-other-project:/scan security-scanner /scan
 ```bash
 # Navigate to any project
 cd ~/code/some-project
-docker run --rm -v $(pwd):/scan security-scanner /scan
+docker run --rm -it -v $(pwd):/scan security-scanner /scan
 ```
 
 ### Scan with Specific Options
 
 ```bash
 # Only high/critical issues, JSON output
-docker run --rm -v ~/code/my-project:/scan security-scanner /scan --severity high --output json
+docker run --rm -it -v ~/code/my-project:/scan security-scanner /scan --severity high --output json
 
 # Only secrets, no vulnerabilities
-docker run --rm -v ~/code/my-project:/scan security-scanner /scan --no-vulns
+docker run --rm -it -v ~/code/my-project:/scan security-scanner /scan --no-vulns
 
 # Save results to file
-docker run --rm -v ~/code/my-project:/scan security-scanner /scan --output json > scan-results.json
+docker run --rm -it -v ~/code/my-project:/scan security-scanner /scan --output json > scan-results.json
 ```
 
 ### CI/CD Integration
@@ -99,15 +102,16 @@ docker run --rm -v ~/code/my-project:/scan security-scanner /scan --output json 
 # GitHub Actions example
 - name: Security Scan
   run: |
-    docker run --rm -v ${{ github.workspace }}:/scan security-scanner /scan --severity high
+    docker run --rm -it -v ${{ github.workspace }}:/scan security-scanner /scan --severity high
 ```
 
 ## Tips
 
 1. **The image is stored locally** - Once built, you can use it from anywhere
 2. **Use absolute paths** - More reliable than relative paths
-3. **Mount as read-only** - The scanner only reads files (add `:ro` if you want extra safety)
-4. **Exit codes** - Exit code 1 means critical/high issues found (useful for CI/CD)
+3. **Use `-it` flags** - Enables interactive mode for better terminal output and spinner animations (especially in Mac Terminal)
+4. **Mount as read-only** - The scanner only reads files (add `:ro` if you want extra safety)
+5. **Exit codes** - Exit code 1 means critical/high issues found (useful for CI/CD)
 
 ## Where is the Image?
 

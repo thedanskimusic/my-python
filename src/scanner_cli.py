@@ -15,6 +15,7 @@ sys.path.insert(0, project_root)
 
 from src.scanner.secret_detector import SecretDetector
 from src.scanner.vulnerability_scanner import VulnerabilityScanner
+from src.scanner.dependency_scanner import DependencyScanner
 from src.scanner.reporter import Reporter
 
 
@@ -22,18 +23,19 @@ from src.scanner.reporter import Reporter
 @click.argument('target', type=click.Path(exists=True))
 @click.option('--secrets/--no-secrets', default=True, help='Scan for secrets')
 @click.option('--vulns/--no-vulns', default=True, help='Scan for vulnerabilities')
+@click.option('--dependencies/--no-dependencies', default=False, help='Scan dependencies for known vulnerabilities')
 @click.option('--output', '-o', type=click.Choice(['console', 'json']), default='console', help='Output format')
 @click.option('--recursive/--no-recursive', default=True, help='Scan subdirectories')
 @click.option('--severity', type=click.Choice(['critical', 'high', 'medium', 'low', 'all']), 
               default='all', help='Minimum severity to report')
-def scan(target, secrets, vulns, output, recursive, severity):
+def scan(target, secrets, vulns, dependencies, output, recursive, severity):
     """
     Scan a file or directory for security issues.
     
     TARGET: File or directory to scan
     """
     click.echo(f"🔍 Scanning: {target}")
-    click.echo(f"   Secrets: {'✓' if secrets else '✗'}, Vulnerabilities: {'✓' if vulns else '✗'}")
+    click.echo(f"   Secrets: {'✓' if secrets else '✗'}, Vulnerabilities: {'✓' if vulns else '✗'}, Dependencies: {'✓' if dependencies else '✗'}")
     click.echo()
     
     all_findings = []
@@ -44,7 +46,10 @@ def scan(target, secrets, vulns, output, recursive, severity):
         secret_detector = SecretDetector()
         secret_findings = secret_detector.scan_directory(target, recursive)
         all_findings.extend(secret_findings)
-        click.echo(f" Found {len(secret_findings)} potential secrets")
+        # Count files that were actually scanned (not just files with findings)
+        file_scanner = secret_detector.file_scanner
+        files_scanned = len(file_scanner.get_scannable_files(target, recursive))
+        click.echo(f" Scanned {files_scanned} file(s), found {len(secret_findings)} potential secrets")
     
     # Scan for vulnerabilities
     if vulns:
@@ -52,7 +57,25 @@ def scan(target, secrets, vulns, output, recursive, severity):
         vuln_scanner = VulnerabilityScanner()
         vuln_findings = vuln_scanner.scan_directory(target, recursive)
         all_findings.extend(vuln_findings)
-        click.echo(f" Found {len(vuln_findings)} potential vulnerabilities")
+        # Count files that were actually scanned (not just files with findings)
+        file_scanner = vuln_scanner.file_scanner
+        files_scanned = len(file_scanner.get_code_files(target, recursive))
+        click.echo(f" Scanned {files_scanned} file(s), found {len(vuln_findings)} potential vulnerabilities")
+    
+    # Scan dependencies for known vulnerabilities
+    if dependencies:
+        click.echo("Scanning dependencies for known vulnerabilities...")
+        dep_scanner = DependencyScanner()
+        # Only scan directories (not individual files)
+        if os.path.isdir(target):
+            dep_findings, dep_stats = dep_scanner.scan_directory(target)
+            all_findings.extend(dep_findings)
+            if dep_stats['files_found'] > 0:
+                click.echo(f"✓ Scanned {dep_stats['packages_checked']} packages from {dep_stats['files_found']} file(s), found {len(dep_findings)} vulnerable dependencies")
+            else:
+                click.echo(f"  No dependency files found")
+        else:
+            click.echo("  (skipped - dependency scanning requires a directory)")
     
     # Filter by severity
     if severity != 'all':
