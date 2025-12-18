@@ -106,6 +106,8 @@ class LLMScanner:
         """
         if self.verbose:
             print(f"  Collecting files from: {directory} (recursive={recursive})")
+            print(f"  Directory exists: {os.path.exists(directory)}")
+            print(f"  Is directory: {os.path.isdir(directory)}")
         
         if not os.path.isdir(directory):
             if os.path.isfile(directory) and self.file_scanner.is_code_file(directory):
@@ -116,6 +118,23 @@ class LLMScanner:
                 print(f"  No code files found at: {directory}")
             return []
         
+        # Add debugging: list what's actually in the directory
+        if self.verbose:
+            try:
+                items = os.listdir(directory)
+                print(f"  Directory contents: {len(items)} item(s)")
+                for item in items[:10]:  # Show first 10 items
+                    item_path = os.path.join(directory, item)
+                    is_dir = os.path.isdir(item_path)
+                    is_file = os.path.isfile(item_path)
+                    ext = Path(item_path).suffix.lower() if is_file else ""
+                    ignored = self.file_scanner.should_ignore(item_path)
+                    print(f"    - {item} (dir={is_dir}, file={is_file}, ext={ext}, ignored={ignored})")
+                if len(items) > 10:
+                    print(f"    ... and {len(items) - 10} more items")
+            except Exception as e:
+                print(f"  Error listing directory: {e}")
+        
         files = self.file_scanner.get_code_files(directory, recursive)
         
         if self.verbose:
@@ -124,6 +143,8 @@ class LLMScanner:
                 print(f"  Files: {', '.join([os.path.basename(f) for f in files[:10]])}")
             elif len(files) > 10:
                 print(f"  Sample files: {', '.join([os.path.basename(f) for f in files[:5]])}... (+{len(files)-5} more)")
+            elif len(files) == 0:
+                print(f"  No code files found. Checked extensions: {', '.join(sorted(self.file_scanner.code_extensions))}")
         
         return files
     
@@ -396,6 +417,29 @@ Code to analyze:
         
         return findings
     
+    def _find_source_directory(self, directory: str) -> Optional[str]:
+        """
+        Look for common source directories in a project root
+        
+        Args:
+            directory: Root directory to check
+            
+        Returns:
+            Path to source directory if found, None otherwise
+        """
+        if not os.path.isdir(directory):
+            return None
+        
+        # Common source directory names (in order of preference)
+        source_dirs = ['src', 'lib', 'app', 'source', 'sources', 'code']
+        
+        for source_dir in source_dirs:
+            source_path = os.path.join(directory, source_dir)
+            if os.path.isdir(source_path):
+                return source_path
+        
+        return None
+    
     def scan_directory(self, directory: str, recursive: bool = True) -> List[Dict]:
         """
         Scan a directory using LLM analysis
@@ -429,8 +473,21 @@ Code to analyze:
                 print("  Error: Gemini client not initialized")
             return []
         
-        # Collect files
+        # Collect files from the specified directory
         files = self._collect_repository_files(directory, recursive)
+        
+        # If no files found and we're at the root, try looking for source directories
+        if not files and recursive:
+            source_dir = self._find_source_directory(directory)
+            if source_dir:
+                if self.verbose:
+                    print(f"  No code files found in root. Checking source directory: {source_dir}")
+                files = self._collect_repository_files(source_dir, recursive=True)
+                if files:
+                    if self.verbose:
+                        print(f"  Found {len(files)} file(s) in source directory")
+                    # Update directory for file paths in findings
+                    directory = source_dir
         
         if not files:
             if self.verbose:
