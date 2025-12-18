@@ -82,19 +82,27 @@ def scan(target, secrets, vulns, dependencies, llm, api_key, output, recursive, 
     
     # LLM-based security analysis
     if llm:
-        click.echo("Analyzing code with LLM (Gemini)...", nl=False)
+        click.echo("Analyzing code with LLM (Gemini)...")
         try:
-            llm_scanner = LLMScanner(api_key=api_key)
+            llm_scanner = LLMScanner(api_key=api_key, verbose=True)
             
             # Check if API key is available
             if not llm_scanner.api_key:
-                click.echo(" ✗ (skipped - GEMINI_API_KEY not set. Set environment variable or use --api-key)")
+                click.echo("  ✗ Skipped - GEMINI_API_KEY not set.")
+                click.echo("    Set environment variable or use --api-key option")
+                click.echo("    Get your API key from: https://makersuite.google.com/app/apikey")
+            elif not llm_scanner.client:
+                click.echo("  ✗ Skipped - Could not initialize Gemini client")
+                click.echo("    Check that google-genai package is installed and API key is valid")
             else:
                 llm_findings = llm_scanner.scan_directory(target, recursive)
                 all_findings.extend(llm_findings)
-                click.echo(f" Found {len(llm_findings)} potential security issues")
+                click.echo(f"  ✓ Found {len(llm_findings)} potential security issues")
         except Exception as e:
-            click.echo(f" ✗ (error: {str(e)})")
+            click.echo(f"  ✗ Error: {str(e)}")
+            import traceback
+            if output == 'json':  # Only show full traceback in verbose mode or on error
+                click.echo(traceback.format_exc())
     
     # Filter by severity
     if severity != 'all':
