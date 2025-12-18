@@ -16,6 +16,7 @@ sys.path.insert(0, project_root)
 from src.scanner.secret_detector import SecretDetector
 from src.scanner.vulnerability_scanner import VulnerabilityScanner
 from src.scanner.dependency_scanner import DependencyScanner
+from src.scanner.llm_scanner import LLMScanner
 from src.scanner.reporter import Reporter
 
 
@@ -24,18 +25,20 @@ from src.scanner.reporter import Reporter
 @click.option('--secrets/--no-secrets', default=True, help='Scan for secrets')
 @click.option('--vulns/--no-vulns', default=True, help='Scan for vulnerabilities')
 @click.option('--dependencies/--no-dependencies', default=False, help='Scan dependencies for known vulnerabilities')
+@click.option('--llm/--no-llm', default=False, help='Use LLM (Gemini) to analyze code for security issues (requires GEMINI_API_KEY)')
+@click.option('--api-key', default=None, help='Gemini API key (overrides GEMINI_API_KEY env var)')
 @click.option('--output', '-o', type=click.Choice(['console', 'json']), default='console', help='Output format')
 @click.option('--recursive/--no-recursive', default=True, help='Scan subdirectories')
 @click.option('--severity', type=click.Choice(['critical', 'high', 'medium', 'low', 'all']), 
               default='all', help='Minimum severity to report')
-def scan(target, secrets, vulns, dependencies, output, recursive, severity):
+def scan(target, secrets, vulns, dependencies, llm, api_key, output, recursive, severity):
     """
     Scan a file or directory for security issues.
     
     TARGET: File or directory to scan
     """
     click.echo(f"🔍 Scanning: {target}")
-    click.echo(f"   Secrets: {'✓' if secrets else '✗'}, Vulnerabilities: {'✓' if vulns else '✗'}, Dependencies: {'✓' if dependencies else '✗'}")
+    click.echo(f"   Secrets: {'✓' if secrets else '✗'}, Vulnerabilities: {'✓' if vulns else '✗'}, Dependencies: {'✓' if dependencies else '✗'}, LLM: {'✓' if llm else '✗'}")
     click.echo()
     
     all_findings = []
@@ -76,6 +79,30 @@ def scan(target, secrets, vulns, dependencies, output, recursive, severity):
                 click.echo(f"  No dependency files found")
         else:
             click.echo("  (skipped - dependency scanning requires a directory)")
+    
+    # LLM-based security analysis
+    if llm:
+        click.echo("Analyzing code with LLM (Gemini)...")
+        try:
+            llm_scanner = LLMScanner(api_key=api_key, verbose=True)
+            
+            # Check if API key is available
+            if not llm_scanner.api_key:
+                click.echo("  ✗ Skipped - GEMINI_API_KEY not set.")
+                click.echo("    Set environment variable or use --api-key option")
+                click.echo("    Get your API key from: https://makersuite.google.com/app/apikey")
+            elif not llm_scanner.client:
+                click.echo("  ✗ Skipped - Could not initialize Gemini client")
+                click.echo("    Check that google-genai package is installed and API key is valid")
+            else:
+                llm_findings = llm_scanner.scan_directory(target, recursive)
+                all_findings.extend(llm_findings)
+                click.echo(f"  ✓ Found {len(llm_findings)} potential security issues")
+        except Exception as e:
+            click.echo(f"  ✗ Error: {str(e)}")
+            import traceback
+            if output == 'json':  # Only show full traceback in verbose mode or on error
+                click.echo(traceback.format_exc())
     
     # Filter by severity
     if severity != 'all':

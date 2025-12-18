@@ -66,6 +66,15 @@ class Reporter:
                         output.append(f"  References:\n")
                         for ref in finding['references'][:3]:  # Show first 3
                             output.append(f"    - {ref.get('url', ref)}\n")
+                elif finding['type'] == 'llm_analysis':
+                    # LLM findings have recommendations
+                    if 'line' in finding and finding['line']:
+                        output.append(f"  File: {finding['file']}:{finding['line']}\n")
+                    else:
+                        output.append(f"  File: {finding['file']}\n")
+                    output.append(f"  Description: {finding['description']}\n")
+                    if finding.get('recommendation'):
+                        output.append(f"  Recommendation: {finding['recommendation']}\n")
                 else:
                     # Regular findings (secrets, vulnerabilities)
                     if 'line' in finding:

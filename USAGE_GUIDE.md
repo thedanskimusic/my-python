@@ -18,6 +18,9 @@ docker run --rm -it -v $(pwd):/scan security-scanner /scan --dependencies
 
 # With options
 docker run --rm -it -v /path/to/target:/scan security-scanner /scan --severity high --output json
+
+# LLM analysis (requires GEMINI_API_KEY)
+docker run --rm -it -v /path/to/target:/scan -e GEMINI_API_KEY security-scanner /scan --llm
 ```
 
 ## Method 2: Using the Wrapper Script
@@ -94,6 +97,16 @@ docker run --rm -it -v ~/code/my-project:/scan security-scanner /scan --no-vulns
 
 # Save results to file
 docker run --rm -it -v ~/code/my-project:/scan security-scanner /scan --output json > scan-results.json
+
+# LLM security analysis
+export GEMINI_API_KEY="your-api-key-here"
+docker run --rm -it -v ~/code/my-project:/scan -e GEMINI_API_KEY security-scanner /scan --llm
+
+# Or provide API key via CLI
+docker run --rm -it -v ~/code/my-project:/scan security-scanner /scan --llm --api-key "your-api-key-here"
+
+# Combine LLM with other scans
+docker run --rm -it -v ~/code/my-project:/scan -e GEMINI_API_KEY security-scanner /scan --llm --dependencies
 ```
 
 ### CI/CD Integration
@@ -105,6 +118,61 @@ docker run --rm -it -v ~/code/my-project:/scan security-scanner /scan --output j
     docker run --rm -it -v ${{ github.workspace }}:/scan security-scanner /scan --severity high
 ```
 
+## LLM Security Analysis
+
+The scanner can use Google's Gemini 2.5 Flash to perform deep security analysis of your codebase. This complements pattern-based scanning by identifying issues like:
+- Unsecured API endpoints
+- Missing authentication/authorization
+- Input validation problems
+- Sensitive data exposure risks
+- General security best practice violations
+
+**Important:** You need your own Gemini API key. The scanner does not include a shared key - each user must provide their own.
+
+**Getting Your API Key:**
+1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Sign in and create a new API key (free tier available)
+
+**Providing Your API Key:**
+
+**Method 1: Environment Variable** (Best for CI/CD)
+```bash
+export GEMINI_API_KEY="your-api-key"
+docker run --rm -it -v $(pwd):/scan -e GEMINI_API_KEY security-scanner /scan --llm
+```
+
+**Method 2: CLI Option** (Convenient for one-off scans)
+```bash
+docker run --rm -it -v $(pwd):/scan security-scanner /scan --llm --api-key "your-api-key"
+```
+
+**Method 3: Config File** (Persistent, good for local use)
+```bash
+# Option A: Home directory config (applies to all projects)
+mkdir -p ~/.security-scanner
+echo '{"gemini_api_key": "your-api-key"}' > ~/.security-scanner/config.json
+
+# Option B: Project-specific config
+echo '{"gemini_api_key": "your-api-key"}' > .security-scanner.json
+```
+
+The scanner checks in this order: CLI option → Environment variable → `~/.security-scanner/config.json` → `.security-scanner.json`
+
+**Examples:**
+```bash
+# Basic LLM scan with env var
+export GEMINI_API_KEY="your-api-key"
+docker run --rm -it -v $(pwd):/scan -e GEMINI_API_KEY security-scanner /scan --llm
+
+# LLM with other scans
+docker run --rm -it -v $(pwd):/scan -e GEMINI_API_KEY security-scanner /scan --llm --dependencies
+
+# Using config file (no need to set env var)
+docker run --rm -it -v $(pwd):/scan -v ~/.security-scanner:/root/.security-scanner security-scanner /scan --llm
+```
+
+**Note:** The LLM scanner analyzes the entire repository for better context. Very large repositories may be truncated to stay within token limits. API usage counts against your Google AI Studio quota.
+
 ## Tips
 
 1. **The image is stored locally** - Once built, you can use it from anywhere
@@ -112,6 +180,7 @@ docker run --rm -it -v ~/code/my-project:/scan security-scanner /scan --output j
 3. **Use `-it` flags** - Enables interactive mode for better terminal output and spinner animations (especially in Mac Terminal)
 4. **Mount as read-only** - The scanner only reads files (add `:ro` if you want extra safety)
 5. **Exit codes** - Exit code 1 means critical/high issues found (useful for CI/CD)
+6. **LLM scanning** - Requires API key and sends code to Google's API (be aware of privacy implications)
 
 ## Where is the Image?
 
