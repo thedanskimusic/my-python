@@ -7,6 +7,7 @@ A security scanning tool similar to Snyk or secret scanners, built to learn Pyth
 - 🔍 **Secret Detection**: Finds API keys, passwords, tokens, AWS credentials, and more
 - 🛡️ **Vulnerability Scanning**: Detects SQL injection risks, unsafe eval/exec usage, and other security issues
 - 📦 **Dependency Scanning**: Checks packages against OSV database for known vulnerabilities (PyPI, npm, etc.)
+- 🤖 **LLM Security Analysis**: Uses Google Gemini 2.5 Flash to analyze code for security issues like unsecured endpoints, authentication gaps, input validation problems, and more
 - 📁 **Directory Scanning**: Recursively scans code and config files
 - 📊 **Multiple Output Formats**: Console (formatted) or JSON output
 - 🎯 **Severity Filtering**: Filter findings by severity level
@@ -22,6 +23,8 @@ my-python/
 │   ├── scanner/          # Scanner modules
 │   │   ├── secret_detector.py
 │   │   ├── vulnerability_scanner.py
+│   │   ├── dependency_scanner.py
+│   │   ├── llm_scanner.py
 │   │   ├── file_scanner.py
 │   │   └── reporter.py
 │   ├── patterns/         # Security pattern definitions
@@ -113,6 +116,13 @@ python src/scanner_cli.py src/ --dependencies
 
 # Scan everything (secrets, vulnerabilities, and dependencies)
 python src/scanner_cli.py src/ --dependencies
+
+# Use LLM analysis (requires GEMINI_API_KEY environment variable)
+export GEMINI_API_KEY="your-api-key-here"
+python src/scanner_cli.py src/ --llm
+
+# Or provide API key via CLI
+python src/scanner_cli.py src/ --llm --api-key "your-api-key-here"
 ```
 
 ### Options
@@ -120,6 +130,8 @@ python src/scanner_cli.py src/ --dependencies
 - `--secrets/--no-secrets`: Enable/disable secret scanning (default: enabled)
 - `--vulns/--no-vulns`: Enable/disable vulnerability scanning (default: enabled)
 - `--dependencies/--no-dependencies`: Scan dependencies for known vulnerabilities (default: disabled)
+- `--llm/--no-llm`: Use LLM (Gemini 2.5 Flash) to analyze code for security issues (default: disabled, requires GEMINI_API_KEY)
+- `--api-key`: Gemini API key (overrides GEMINI_API_KEY environment variable)
 - `--output, -o`: Output format - `console` or `json` (default: console)
 - `--recursive/--no-recursive`: Scan subdirectories (default: enabled)
 - `--severity`: Minimum severity to report - `critical`, `high`, `medium`, `low`, or `all` (default: all)
@@ -140,6 +152,63 @@ docker run --rm -v /path/to/repo:/scan security-scanner /scan --dependencies --n
 # Scan everything including dependencies
 docker run --rm -v /path/to/repo:/scan security-scanner /scan --dependencies
 ```
+
+### LLM Security Analysis
+
+The LLM scanner uses Google's Gemini 2.5 Flash to analyze your codebase for security issues that pattern-based scanners might miss:
+- ✅ **API Endpoints**: Identifies endpoints missing authentication/authorization
+- ✅ **Authentication & Authorization**: Finds weak or missing auth checks
+- ✅ **Input Validation**: Detects missing input validation and sanitization
+- ✅ **Data Exposure**: Identifies sensitive data exposure risks
+- ✅ **General Security**: Flags security best practice violations
+
+**Important:** Each user needs their own Gemini API key. The scanner does not include a shared API key - you must provide your own.
+
+**Getting an API Key:**
+1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Sign in with your Google account
+3. Create a new API key (free tier available)
+
+**Providing Your API Key (choose one method):**
+
+1. **Environment Variable** (Recommended for CI/CD):
+   ```bash
+   export GEMINI_API_KEY="your-api-key"
+   docker run --rm -it -v /path/to/repo:/scan -e GEMINI_API_KEY security-scanner /scan --llm
+   ```
+
+2. **CLI Option** (Convenient for one-off scans):
+   ```bash
+   docker run --rm -it -v /path/to/repo:/scan security-scanner /scan --llm --api-key "your-api-key"
+   ```
+
+3. **Config File** (Persistent, good for local development):
+   ```bash
+   # Create config file in your home directory
+   mkdir -p ~/.security-scanner
+   echo '{"gemini_api_key": "your-api-key"}' > ~/.security-scanner/config.json
+   
+   # Or create .security-scanner.json in your project root
+   echo '{"gemini_api_key": "your-api-key"}' > .security-scanner.json
+   ```
+   The scanner will automatically use the API key from the config file.
+
+**Priority Order:** CLI option → Environment variable → Config file (`~/.security-scanner/config.json`) → Local config (`.security-scanner.json`)
+
+**Examples:**
+```bash
+# With environment variable
+export GEMINI_API_KEY="your-api-key"
+docker run --rm -it -v /path/to/repo:/scan -e GEMINI_API_KEY security-scanner /scan --llm
+
+# With CLI option
+docker run --rm -it -v /path/to/repo:/scan security-scanner /scan --llm --api-key "your-api-key"
+
+# Combine with other scans
+docker run --rm -it -v /path/to/repo:/scan -e GEMINI_API_KEY security-scanner /scan --llm --dependencies
+```
+
+**Note:** The LLM scanner analyzes the entire repository at once for better context. Large repositories may be truncated to stay within token limits. Your API key usage will count against your Google AI Studio quota.
 
 ## Example Output
 
